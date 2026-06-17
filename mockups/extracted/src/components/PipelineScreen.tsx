@@ -424,6 +424,18 @@ const TableView: React.FC<{ candidatures: Candidature[] }> = ({ candidatures }) 
 
 // ─── AddCandidatureModal ──────────────────────────────────────────────────────
 
+// Défini EN DEHORS du composant parent pour éviter le re-mount à chaque frappe
+const ModalField: React.FC<{ label: string; required?: boolean; children: React.ReactNode }> = ({ label, required, children }) => (
+  <div>
+    <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
+      {label}{required && <span className="text-rose-400 ml-0.5">*</span>}
+    </label>
+    {children}
+  </div>
+);
+
+const MODAL_INPUT_CLS = 'w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[13px] text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-400';
+
 const EMPTY_FORM = {
   prenom:      '',
   nom:         '',
@@ -465,17 +477,6 @@ const AddCandidatureModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
     onClose();
   };
 
-  const Field: React.FC<{ label: string; required?: boolean; children: React.ReactNode }> = ({ label, required, children }) => (
-    <div>
-      <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
-        {label}{required && <span className="text-rose-400 ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-
-  const inputCls = 'w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[13px] text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-400';
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -510,35 +511,35 @@ const AddCandidatureModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
 
             <div className="space-y-3">
               {/* Entreprise */}
-              <Field label="Entreprise" required>
+              <ModalField label="Entreprise" required>
                 <input value={form.entreprise} onChange={(e) => set('entreprise', e.target.value)}
-                  placeholder="NordProd Films" className={inputCls} autoFocus />
-              </Field>
+                  placeholder="NordProd Films" className={MODAL_INPUT_CLS} />
+              </ModalField>
 
               {/* Prénom + Nom */}
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Prénom" required>
+                <ModalField label="Prénom" required>
                   <input value={form.prenom} onChange={(e) => set('prenom', e.target.value)}
-                    placeholder="Marie" className={inputCls} />
-                </Field>
-                <Field label="Nom" required>
+                    placeholder="Marie" className={MODAL_INPUT_CLS} />
+                </ModalField>
+                <ModalField label="Nom" required>
                   <input value={form.nom} onChange={(e) => set('nom', e.target.value)}
-                    placeholder="Dupont" className={inputCls} />
-                </Field>
+                    placeholder="Dupont" className={MODAL_INPUT_CLS} />
+                </ModalField>
               </div>
 
               {/* Rôle + Poste */}
-              <Field label="Rôle / Poste du contact">
+              <ModalField label="Rôle / Poste du contact">
                 <input value={form.contactRole} onChange={(e) => set('contactRole', e.target.value)}
-                  placeholder="Responsable RH, Directeur de la photo…" className={inputCls} />
-              </Field>
-              <Field label="Poste visé (ce que tu cherches)">
+                  placeholder="Responsable RH, Directeur de la photo…" className={MODAL_INPUT_CLS} />
+              </ModalField>
+              <ModalField label="Poste visé (ce que tu cherches)">
                 <input value={form.posteVise} onChange={(e) => set('posteVise', e.target.value)}
-                  placeholder="Alternance en production audiovisuelle" className={inputCls} />
-              </Field>
+                  placeholder="Alternance en production audiovisuelle" className={MODAL_INPUT_CLS} />
+              </ModalField>
 
               {/* Canal */}
-              <Field label="Canal">
+              <ModalField label="Canal">
                 <div className="flex gap-2">
                   {(['LinkedIn', 'Email', 'Téléphone'] as CanalType[]).map((c) => (
                     <button key={c} type="button"
@@ -553,14 +554,14 @@ const AddCandidatureModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
                     </button>
                   ))}
                 </div>
-              </Field>
+              </ModalField>
 
               {/* Notes */}
-              <Field label="Notes libres">
+              <ModalField label="Notes libres">
                 <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)}
                   placeholder="Infos utiles, contexte…" rows={2}
-                  className={`${inputCls} resize-none`} />
-              </Field>
+                  className={`${MODAL_INPUT_CLS} resize-none`} />
+              </ModalField>
             </div>
 
             <div className="flex gap-3 mt-6">
