@@ -76,6 +76,7 @@ export default function ProfileScreen() {
     nom:          studentProfile.nom,
     ecole:        studentProfile.ecole,
     domaine:      studentProfile.domaine as DomaineType | '',
+    ville:        studentProfile.ville,
     typePoste:    studentProfile.typePoste,
     periodeDebut: studentProfile.periodeDebut,
     dureeRythme:  studentProfile.dureeRythme,
@@ -207,6 +208,11 @@ export default function ProfileScreen() {
                     </button>
                   ))}
                 </div>
+              </Field>
+
+              <Field label="Ville de recherche" hint="Pré-remplit la recherche dans le Marché caché.">
+                <input type="text" value={form.ville} onChange={(e) => setField('ville', e.target.value)}
+                  placeholder="Paris, Lyon, Bordeaux…" className={inputCls} />
               </Field>
 
               <Field label="Type de poste visé" hint="Ex : production / réalisation, développement front-end…">

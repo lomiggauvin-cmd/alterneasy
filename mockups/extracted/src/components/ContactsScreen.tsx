@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -118,13 +118,17 @@ const CompanyCard: React.FC<CompanyCardProps> = ({ company: c, alreadyAdded, onA
   const effectif = fmtEffectif(c.effectif);
   const dirigeant = [c.dirigeantPrenom, c.dirigeantNom].filter(Boolean).join(' ');
 
+  const linkedinUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${dirigeant} ${c.nomComplet}`)}`;
+  const googleUrl   = `https://www.google.com/search?q=${encodeURIComponent(`${c.nomComplet} ${c.ville} contact recrutement`)}`;
+  const annuaireUrl = `https://annuaire-entreprises.data.gouv.fr/entreprise/${c.siren}`;
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-700 transition-all"
+      className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-700 transition-all flex flex-col"
     >
       {/* Header */}
       <div className="flex items-start gap-3">
@@ -165,10 +169,46 @@ const CompanyCard: React.FC<CompanyCardProps> = ({ company: c, alreadyAdded, onA
             {effectif}
           </span>
         )}
+        {c.telephone && (
+          <a href={`tel:${c.telephone}`}
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-[11px] text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 transition-colors">
+            <Icons.Phone className="w-2.5 h-2.5" />
+            {c.telephone}
+          </a>
+        )}
+        {c.siteWeb && (
+          <a href={c.siteWeb.startsWith('http') ? c.siteWeb : `https://${c.siteWeb}`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-900/20 text-[11px] text-sky-700 dark:text-sky-400 hover:bg-sky-100 transition-colors truncate max-w-[120px]">
+            <Icons.Globe className="w-2.5 h-2.5 flex-shrink-0" />
+            <span className="truncate">{c.siteWeb.replace(/^https?:\/\//, '')}</span>
+          </a>
+        )}
       </div>
 
-      {/* Actions */}
-      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+      {/* Boutons canaux gratuits */}
+      <div className="flex items-center gap-1.5 mt-3">
+        <a href={linkedinUrl} target="_blank" rel="noopener noreferrer"
+          title="Voir sur LinkedIn"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-[#0A66C2]/10 hover:bg-[#0A66C2]/20 text-[#0A66C2] dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 text-[11px] font-semibold transition-colors">
+          <Icons.Linkedin className="w-3 h-3" />
+          LinkedIn
+        </a>
+        <a href={googleUrl} target="_blank" rel="noopener noreferrer"
+          title="Trouver le contact"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-[11px] font-semibold transition-colors">
+          <Icons.Search className="w-3 h-3" />
+          Contact
+        </a>
+        <a href={annuaireUrl} target="_blank" rel="noopener noreferrer"
+          title="Fiche entreprise officielle"
+          className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 transition-colors flex-shrink-0">
+          <Icons.Building2 className="w-3.5 h-3.5" />
+        </a>
+      </div>
+
+      {/* Ajouter au suivi / Pas intéressé */}
+      <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-700">
         {alreadyAdded ? (
           <div className="flex items-center gap-1.5 text-[12px] text-emerald-600 dark:text-emerald-400 font-medium">
             <Icons.CheckCircle2 className="w-3.5 h-3.5" />
@@ -239,7 +279,8 @@ export default function ContactsScreen() {
     studentProfile, setStudentProfile,
   } = useStore();
 
-  const [ville,        setVille]        = useState(() => localStorage.getItem(CITY_KEY) ?? '');
+  // Priorité : studentProfile.ville (source unique) → fallback migration CITY_KEY
+  const [ville,        setVille]        = useState(() => studentProfile.ville || localStorage.getItem(CITY_KEY) || '');
   const [results,      setResults]      = useState<CompanyResult[]>([]);
   const [searchState,  setSearchState]  = useState<SearchState>('idle');
   const [errorMsg,     setErrorMsg]     = useState('');
@@ -271,53 +312,42 @@ export default function ContactsScreen() {
     return new Set(results.filter((c) => names.has(c.nomComplet.toLowerCase())).map((c) => c.siren));
   }, [results, candidatures]);
 
-  // useCallback pour que l'effet de montage capture toujours la version courante
-  const handleSearch = useCallback(async (villeCible = ville, domaineCible = domaine) => {
-    if (!villeCible.trim()) { toast.error('Saisis une ville pour lancer la recherche.'); return; }
-    if (!domaineCible)      { toast.error('Définis ton domaine dans ton profil d\'abord.'); return; }
+  // Cleanup : annule les setState si le composant est démonté pendant une recherche
+  useEffect(() => () => { abortRef.current = true; }, []);
 
-    const nafCodes = nafCodesForDomain(domaineCible);
+  const handleSearch = async () => {
+    if (!ville.trim()) { toast.error('Saisis une ville pour lancer la recherche.'); return; }
+    if (!domaine)      { toast.error('Définis ton domaine dans ton profil d\'abord.'); return; }
+
+    const nafCodes = nafCodesForDomain(domaine);
     if (!nafCodes.length) {
-      toast.error(`Aucun code NAF défini pour le domaine "${domaineCible}".`);
+      toast.error(`Aucun code NAF défini pour le domaine "${domaine}".`);
       return;
     }
 
-    localStorage.setItem(CITY_KEY, villeCible.trim());
+    setStudentProfile({ ville: ville.trim() });
     setSearchState('loading');
     setErrorMsg('');
     setResults([]);
     setProgress({ done: 0, total: nafCodes.length });
     abortRef.current = false;
 
-    console.log(`[ContactsScreen] Recherche → ville="${villeCible}" domaine="${domaineCible}" codes NAF:`, nafCodes);
-
     const { results: found, error } = await searchCompanies(
-      villeCible.trim(),
+      ville.trim(),
       nafCodes,
       (done, total) => setProgress({ done, total })
     );
 
     if (abortRef.current) return;
 
-    console.log(`[ContactsScreen] Résultats reçus (${found.length}) → stockage dans results state`);
-
     if (error) {
       setSearchState('error');
       setErrorMsg(error);
     } else {
-      setResults(found);  // ← seule source d'alimentation des cartes
+      setResults(found);
       setSearchState('done');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ville, domaine]);
-
-  // Auto-recherche si une ville est sauvegardée et qu'on arrive sur l'écran
-  useEffect(() => {
-    if (domaine && ville && results.length === 0 && searchState === 'idle') {
-      handleSearch(ville, domaine);
-    }
-    return () => { abortRef.current = true; };
-  }, [handleSearch]); // handleSearch se met à jour quand ville/domaine changent
+  };
 
   const handleAdd = (c: CompanyResult) => {
     const dirigeant = [c.dirigeantPrenom, c.dirigeantNom].filter(Boolean).join(' ');

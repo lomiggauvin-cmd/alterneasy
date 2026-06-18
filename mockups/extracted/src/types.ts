@@ -210,7 +210,8 @@ export interface StudentProfile {
   prenom: string;
   nom: string;
   ecole: string;
-  domaine: DomaineType | '';   // source de vérité pour le filtre d'import
+  domaine: DomaineType | '';   // source de vérité pour le filtre d'import et la recherche contacts
+  ville: string;               // source de vérité pour la recherche contacts
   typePoste: string;           // ex : "production / réalisation"
   periodeDebut: string;        // ex : "Septembre 2025"
   dureeRythme: string;         // ex : "2 ans · 2 sem. école / 2 sem. entreprise"

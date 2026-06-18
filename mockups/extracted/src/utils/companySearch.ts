@@ -9,6 +9,8 @@ export interface CompanyResult {
   ville:             string;
   codePostal:        string;
   effectif:          string | null;
+  siteWeb?:          string;
+  telephone?:        string;
 }
 
 // ─── Types réponse API ────────────────────────────────────────────────────────
@@ -20,8 +22,10 @@ interface ApiDirigeant {
 }
 
 interface ApiSiege {
-  commune?:     string;
-  code_postal?: string;
+  commune?:       string;
+  code_postal?:   string;
+  site_internet?: string;
+  telephone?:     string;
 }
 
 interface ApiCompany {
@@ -62,6 +66,8 @@ function mapCompany(raw: ApiCompany): CompanyResult {
     ville:            raw.siege?.commune ?? '',
     codePostal:       raw.siege?.code_postal ?? '',
     effectif:         raw.tranche_effectif_salarie ?? null,
+    siteWeb:          raw.siege?.site_internet || undefined,
+    telephone:        raw.siege?.telephone || undefined,
   };
 }
 

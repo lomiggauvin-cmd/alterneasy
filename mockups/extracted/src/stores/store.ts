@@ -31,11 +31,27 @@ const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   nom: '',
   ecole: '',
   domaine: '',
+  ville: '',
   typePoste: '',
   periodeDebut: '',
   dureeRythme: '',
   cherche: '',
 };
+
+// Mapping des noms d'affichage onboarding → DomaineType NAF
+const ONBOARDING_TO_DOMAINE: Record<string, DomaineType> = {
+  'Audiovisuel':           'audiovisuel',
+  'Commerce/Vente':        'commerce',
+  'Marketing Digital':     'marketing',
+  'Ingénierie':            'ingénierie',
+};
+function mapOnboardingDomain(displayDomains: string[]): DomaineType | '' {
+  for (const d of displayDomains) {
+    const found = ONBOARDING_TO_DOMAINE[d];
+    if (found) return found;
+  }
+  return displayDomains.length > 0 ? 'autre' : '';
+}
 
 function loadStudentProfileFromStorage(): StudentProfile {
   try {
@@ -48,6 +64,7 @@ function loadStudentProfileFromStorage(): StudentProfile {
         nom:           stored.nom?.includes(' ') ? stored.nom.split(' ').slice(1).join(' ') : (stored.nom ?? ''),
         ecole:         stored.ecole         ?? '',
         domaine:       (stored.domaine      ?? stored.secteur ?? '') as DomaineType | '',
+        ville:         stored.ville         ?? '',
         typePoste:     stored.typePoste     ?? '',
         periodeDebut:  stored.periodeDebut  ?? stored.periodeAlternance ?? '',
         dureeRythme:   stored.dureeRythme   ?? '',
@@ -65,7 +82,17 @@ function saveStudentProfileToStorage(p: StudentProfile): void {
 function loadCandidaturesFromStorage(): Record<string, Candidature> | null {
   try {
     const raw = localStorage.getItem(CANDIDATURES_KEY);
-    if (raw) return JSON.parse(raw) as Record<string, Candidature>;
+    if (raw) {
+      const data = JSON.parse(raw) as Record<string, Candidature>;
+      // Purge les IDs mock (cand-1 à cand-99) laissés par la maquette
+      const real = Object.fromEntries(
+        Object.entries(data).filter(([id]) => !/^cand-\d+$/.test(id))
+      );
+      if (Object.keys(real).length !== Object.keys(data).length) {
+        localStorage.setItem(CANDIDATURES_KEY, JSON.stringify(real));
+      }
+      return Object.keys(real).length ? real : null;
+    }
   } catch { /* ignore */ }
   return null;
 }
@@ -123,7 +150,6 @@ import {
   mockApplications,
   mockEmails,
   mockTasks,
-  mockCandidatures,
 } from './mockData';
 
 // Email Templates
@@ -286,6 +312,10 @@ interface StoreState {
   dismissSiren: (siren: string) => void;
   restoreSiren: (siren: string) => void;
 
+  // Générateur de messages — candidature pré-sélectionnée (pont Pipeline → MessageGenerator)
+  messageGeneratorCandidatureId: string | null;
+  preselectCandidature: (id: string | null) => void;
+
   // Helper: Generate ID
   generateId: () => string;
 }
@@ -340,8 +370,8 @@ export const useStore = create<StoreState>((set, get) => ({
   // Settings
   settingsState: initialSettingsState,
 
-  // Candidatures — chargées depuis localStorage, sinon mock data
-  candidatures: loadCandidaturesFromStorage() ?? mockCandidatures,
+  // Candidatures — chargées depuis localStorage, vide pour un nouveau compte
+  candidatures: loadCandidaturesFromStorage() ?? {},
 
   // Contacts (marché caché) — chargés depuis localStorage
   contacts: loadContactsFromStorage(),
@@ -354,6 +384,9 @@ export const useStore = create<StoreState>((set, get) => ({
 
   // User preferences (onboarding) — loaded from localStorage for persistence across reloads
   userPreferences: loadPrefsFromStorage(),
+
+  // Générateur de messages — aucune pré-sélection au démarrage
+  messageGeneratorCandidatureId: null,
 
   // Dark mode
   isDarkMode: false,
@@ -397,7 +430,18 @@ export const useStore = create<StoreState>((set, get) => ({
   completeOnboarding2: (domains, rhythm, locations) => {
     const prefs: UserPreferences = { domains, rhythm, locations, onboardingDone: true };
     savePrefsToStorage(prefs);
-    set({ userPreferences: prefs });
+    // Pont onboarding → studentProfile : domaine + ville deviennent la source de vérité
+    const domaineMapped = mapOnboardingDomain(domains);
+    const firstVille = locations[0] ?? '';
+    set((state) => {
+      const updatedProfile: StudentProfile = {
+        ...state.studentProfile,
+        ...(domaineMapped ? { domaine: domaineMapped } : {}),
+        ...(firstVille    ? { ville:   firstVille   } : {}),
+      };
+      saveStudentProfileToStorage(updatedProfile);
+      return { userPreferences: prefs, studentProfile: updatedProfile };
+    });
   },
 
   closeModal: () => {
@@ -923,6 +967,8 @@ export const useStore = create<StoreState>((set, get) => ({
       return { dismissedSirens: updated };
     });
   },
+
+  preselectCandidature: (id) => set({ messageGeneratorCandidatureId: id }),
 
   generateId: () => {
     return Math.random().toString(36).substr(2, 9);
